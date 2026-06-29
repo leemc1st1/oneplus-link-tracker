@@ -1,4 +1,4 @@
-name: Get OnePlus 15 OTA (DanielSpringer)
+name: OnePlus OTA Fetch (Direct Server)
 
 on:
   workflow_dispatch:
@@ -15,28 +15,45 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y curl jq
 
-      - name: Fetch OTA page
+      - name: Request OTA from server
         run: |
-          curl -s "https://roms.danielspringer.at/index.php?view=ota" -o ota.html
+          # ⚠️ THAY MODEL + REGION đúng OnePlus 15 của bạn
+          MODEL="CPHxxxx"
+          REGION="IN"
+
+          curl -s "https://otaserver.oneplus.net/v1/checkUpdate" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"device\": \"$MODEL\",
+              \"region\": \"$REGION\",
+              \"os\": \"OxygenOS\",
+              \"type\": \"full\"
+            }" > ota.json
+
+          echo "===== OTA RESPONSE ====="
+          cat ota.json
 
       - name: Extract OTA link
         run: |
-          grep -oE "https://gauss-compotaauto[^\"']+" ota.html | sort -u > links.txt || true
-
-          cat links.txt
-
-          OTA_URL=$(head -n 1 links.txt)
+          OTA_URL=$(jq -r '.data.downloadUrl // .download_url // .result.downloadUrl // empty' ota.json)
+          VERSION=$(jq -r '.data.version // .version // empty' ota.json)
 
           if [ -z "$OTA_URL" ]; then
-            echo "No OTA found"
+            echo "No OTA found from server"
             exit 0
           fi
 
           echo "OTA_URL=$OTA_URL" >> $GITHUB_ENV
+          echo "OTA_VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Send Telegram
         if: env.OTA_URL != ''
         run: |
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHANNEL_ID }}" \
-            -d text="OnePlus 15 OTA found:\n${OTA_URL}"
+            -d text="OnePlus OTA FOUND
+
+Device: OnePlus 15
+Version: ${OTA_VERSION}
+
+${OTA_URL}"
