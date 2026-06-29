@@ -53,7 +53,7 @@ jobs:
             -d chat_id="${{ secrets.TELEGRAM_CHANNEL_ID }}" \
             -d text="OnePlus OTA FOUND
 
-Device: OnePlus 15
-Version: ${OTA_VERSION}
+                     Device: OnePlus 15
+                     Version: ${OTA_VERSION}
 
-${OTA_URL}"
+                     ${OTA_URL}"
