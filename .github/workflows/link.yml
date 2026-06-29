@@ -1,0 +1,44 @@
+name: Get OnePlus 15 OTA (DanielSpringer)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */6 * * *"
+
+jobs:
+  ota:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y curl jq
+
+      - name: Fetch OTA page (resolver)
+        run: |
+          curl -s "https://roms.danielspringer.at/index.php?view=ota" -o ota.html
+          echo "Downloaded OTA page"
+
+      - name: Extract possible OTA links
+        run: |
+          grep -oE "https://gauss-compotaauto[^\"']+" ota.html | sort -u > links.txt || true
+
+          echo "=== OTA LINKS ==="
+          cat links.txt
+
+          OTA_URL=$(head -n 1 links.txt)
+
+          if [ -z "$OTA_URL" ]; then
+            echo "No OTA found"
+            exit 0
+          fi
+
+          echo "OTA_URL=$OTA_URL" >> $GITHUB_ENV
+
+      - name: Send Telegram
+        if: env.OTA_URL != ''
+        run: |
+          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHANNEL_ID }}" \
+            -d text="OnePlus 15 OTA found:
+
+${OTA_URL}"
